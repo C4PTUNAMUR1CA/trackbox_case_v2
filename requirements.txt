@@ -1,0 +1,7 @@
+trackbox_case==0.0.1
+pandas==2.2.3
+numpy==2.2.2
+openpyxl==3.1.5
+matplotlib==3.10.0
+torch==2.6.0
+scikit-learn==1.6.1

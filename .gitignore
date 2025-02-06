@@ -1,0 +1,30 @@
+# Ignore data folder
+data/
+
+aggregated_match_dict.pkl
+
+# Venv
+.env
+env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual env
+venv/
+
+# VS Code
+.vscode/
