@@ -33,8 +33,11 @@ def load_match_data():
             #perform some data validations after home and away data is combined
             raw_data_validation(aggregated_match_dict[match_id])
 
-            #TODO: add here feature engineered variables
-            aggregated_match_dict[match_id] = feature_engineering.create_new_features(aggregated_match_dict[match_id])
+            if match_id=="match4":
+                train_or_test="test"
+            else:
+                train_or_test="train"
+            aggregated_match_dict[match_id] = feature_engineering.create_new_features(aggregated_match_dict[match_id],train_or_test)
 
         else:
             aggregated_match_dict[match_id] = match_dict_all[match].copy()

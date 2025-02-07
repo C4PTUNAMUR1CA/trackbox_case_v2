@@ -34,10 +34,10 @@ feature_columns = {
 hyperparameter_lstm = {
     "hyperparameters_1":{
         "hidden_dim":50,
-        "num_layers":1,
-        "epochs":100,
-        "batch_size":32,
-        "learning_rate":0.001,
+        "num_layers":2,
+        "epochs":50,
+        "batch_size":64,
+        "learning_rate":0.0001,
     }
 }
 

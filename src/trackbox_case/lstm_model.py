@@ -9,6 +9,7 @@ from trackbox_case.utils import filling_missing_data
 import pandas as pd
 from trackbox_case.load_data import save_torch_model
 from datetime import datetime
+from trackbox_case.feature_engineering import create_ball_related_features
 
 # Define LSTM Model
 class trackbox_LSTM(nn.Module):
@@ -157,23 +158,88 @@ def standardise_data(df):
     scaler = StandardScaler()
 
     #before standardisation, collect the mean and stdev of ball_x and ball_y (from training_data)
-    if "ball_x" in df.columns and "ball_y" in df.columns:
-        scaler_predictors_info_dict = {
-            "ball_x":{
-                "mean":float(df["ball_x"].mean()),
-                "stdev":float(df["ball_x"].std())
-            },
-            "ball_y":{
-                "mean":float(df["ball_y"].mean()),
-                "stdev":float(df["ball_y"].std())
-            }
+    scaler_predictors_info_dict = {}
+    for col in cols_to_standardise:
+        scaler_predictors_info_dict[col]={
+            "mean":float(df[col].mean()),
+            "stdev":float(df[col].std())
         }
-    else:
-        scaler_predictors_info_dict={}
 
     df[cols_to_standardise] = scaler.fit_transform(df[cols_to_standardise])
 
     return df,scaler_predictors_info_dict
+
+def standardise_with_train_data(df,scaler_info):
+
+    cols_to_standardise = [col for col in df.columns if "_boolean" not in col]
+
+    for col in cols_to_standardise:
+        df[col] = (df[col] - scaler_info[col]["mean"])/scaler_info[col]["stdev"]
+    
+    return df
+
+def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_model,scaler_info):
+
+    #create X dataframe from the testing set and make it into tensor data format
+    # x_test_df = test_df[feature_col_list].reset_index(drop=True).values
+    # x_test_tensor = torch.tensor(x_test_df,dtype=torch.float32)
+
+    #introduce the predictor columns to test_df
+    test_df[predictor_col_list] = [0,0]
+
+    #collect all predicted ball_x and ball_y values in here
+    predicted_positions = []
+    lstm_model.eval()
+
+    for i in range(len(test_df)):
+        if i % 20==0:
+            print(f"it is the {str(i)}th forecast out of {str(len(test_df))}")
+        if test_df.loc[i,"Time"]==0:
+            #at the start of each half, predict that the ball is at 0
+            ball_x_pred = 0
+            ball_y_pred = 0
+
+            #update ball related features at current row
+            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred]
+
+            #store predicted coordinates
+            predicted_positions.append([ball_x_pred,ball_y_pred])
+        else:
+            test_df_to_ith_sample = test_df.copy()[0:(i+1)]
+            #update features, such that at time t the ball-related features are created with the forecast ball coordinates at time t-1
+            test_df_to_ith_sample = create_ball_related_features(test_df_to_ith_sample,train_or_test="train")
+
+            test_df_to_ith_sample = standardise_with_train_data(test_df_to_ith_sample,scaler_info)
+
+            x_test_df = test_df_to_ith_sample[feature_col_list].reset_index(drop=True).values
+            x_test_tensor = torch.tensor(x_test_df,dtype=torch.float32)
+
+            input_features = x_test_tensor[i].clone()
+
+            #obtain predictions for the testing set
+            #torch.no_grad(): states explicitly to pytorch that no gradient is being calculated here
+            with torch.no_grad():
+                y_pred_test = lstm_model(input_features)
+
+            # Get predictions
+            ball_x_pred_standardised, ball_y_pred_standardised = y_pred_test.squeeze().tolist()
+
+            ball_x_pred = ball_x_pred_standardised*scaler_info["ball_x"]["stdev"] + scaler_info["ball_x"]["mean"]
+            ball_y_pred = ball_y_pred_standardised*scaler_info["ball_y"]["stdev"] + scaler_info["ball_y"]["mean"]
+
+            # Ensure predictions stay within field boundaries
+            ball_x_pred = np.clip(ball_x_pred, -config.length_field_in_metres*100/2, config.length_field_in_metres*100/2)
+            ball_y_pred = np.clip(ball_y_pred, -config.width_field_in_metres*100/2, config.width_field_in_metres*100/2)
+
+            #update ball related features at current row
+            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred]
+
+            #store predicted coordinates
+            predicted_positions.append([ball_x_pred,ball_y_pred])
+
+    df_testing_predictions = pd.DataFrame(predicted_positions, columns=[col + "_pred" for col in predictor_col_list])
+
+    return df_testing_predictions
 
 def deploy_lstm_model(training_df,test_df,model_version,hyperparameters_dict,kfold_cross_validation_boolean=False):
 
@@ -194,11 +260,10 @@ def deploy_lstm_model(training_df,test_df,model_version,hyperparameters_dict,kfo
     #standardise the data such that no feature weighs heavier within the training data
     #also helps training the LSTM more efficiently
     training_df,scaler_predictors_training_info = standardise_data(df=training_df)
-    test_df,scaler_predictors_testing_info = standardise_data(df=test_df)
 
     #create feature column list for predicting ball_x and ball_y
-    feature_col_list = [col for col in training_df if col not in ["ball_x","ball_y"]]
     predictor_col_list = ["ball_x","ball_y"]
+    feature_col_list = [col for col in training_df if col not in predictor_col_list]
 
     #define what the input_dimension should be for the lstm model
     hyperparameters_dict["input_dim"] = len(feature_col_list)
@@ -236,48 +301,61 @@ def deploy_lstm_model(training_df,test_df,model_version,hyperparameters_dict,kfo
                                                             learning_rate=hyperparameters_dict["learning_rate"],
                                                             validation_boolean=False)
         
-        #create X dataframe from the testing set and make it into tensor data format
-        x_test_df = test_df[feature_col_list].reset_index(drop=True).values
-        x_test_tensor = torch.tensor(x_test_df,dtype=torch.float32)
-
-        #obtain predictions for the testing set
-        y_pred_test = best_model(x_test_tensor)
-
+        #store the optimised model
         model_stored_name = f"trained_models/lstm_model_{datetime.today().strftime('%Y%m%d%H%M')}.pth"
         save_torch_model(best_model,model_stored_name)
 
-        #transform y_pred_test tensor table to numpy table
-        y_pred_numpy  = y_pred_test.detach().cpu().numpy()
-
-        #translate numpy table into dataframe
-        df_testing_predictions = pd.DataFrame(y_pred_numpy, columns=["ball_x_pred", "ball_y_pred"])
+        df_testing_predictions = create_lstm_predictions(test_df=test_df,
+                                feature_col_list=feature_col_list,
+                                predictor_col_list=predictor_col_list,
+                                lstm_model=best_model,
+                                scaler_info=scaler_predictors_training_info)
         
-        #destandardise data, using mean and stdev from training_data, since this information is not available for the testing set
-        df_testing_predictions["ball_x_pred"] = df_testing_predictions["ball_x_pred"]*scaler_predictors_training_info["ball_x"]["stdev"] + scaler_predictors_training_info["ball_x"]["mean"]
-        df_testing_predictions["ball_y_pred"] = df_testing_predictions["ball_y_pred"]*scaler_predictors_training_info["ball_y"]["stdev"] + scaler_predictors_training_info["ball_y"]["mean"]
-        
-        #if some predicted results are out of bounds of x and y coordinates (field is 105m long by 68m wide), then set them within the boundaries
-        df_testing_predictions["ball_x_pred"] = np.where(
-            df_testing_predictions["ball_x_pred"]<(-1*round(config.length_field_in_metres*100/2,0)),
-            (-1*round(config.length_field_in_metres*100/2,0)),
-            np.where(
-                df_testing_predictions["ball_x_pred"]>round(config.length_field_in_metres*100/2,0),
-                round(config.length_field_in_metres*100/2,0),
-                df_testing_predictions["ball_x_pred"]
-            )
-        )
-        df_testing_predictions["ball_y_pred"] = np.where(
-            df_testing_predictions["ball_y_pred"]<(-1*round(config.width_field_in_metres*100/2,0)),
-            (-1*round(config.width_field_in_metres*100/2,0)),
-            np.where(
-                df_testing_predictions["ball_y_pred"]>round(config.width_field_in_metres*100/2,0),
-                round(config.width_field_in_metres*100/2,0),
-                df_testing_predictions["ball_y_pred"]
-            )
-        )
-
         #stored_predictions
         prediction_table_name = f"prediction_output/lstm_prediction_{datetime.today().strftime('%Y%m%d%H%M')}.pkl"
         df_testing_predictions.to_pickle(prediction_table_name)
 
         return df_testing_predictions, train_rmse, model_stored_name, prediction_table_name
+        
+        #create X dataframe from the testing set and make it into tensor data format
+        # x_test_df = test_df[feature_col_list].reset_index(drop=True).values
+        # x_test_tensor = torch.tensor(x_test_df,dtype=torch.float32)
+
+        # #obtain predictions for the testing set
+        # y_pred_test = best_model(x_test_tensor)
+
+        # #transform y_pred_test tensor table to numpy table
+        # y_pred_numpy  = y_pred_test.detach().cpu().numpy()
+
+        # #translate numpy table into dataframe
+        # df_testing_predictions = pd.DataFrame(y_pred_numpy, columns=["ball_x_pred", "ball_y_pred"])
+        
+        # #destandardise data, using mean and stdev from training_data, since this information is not available for the testing set
+        # df_testing_predictions["ball_x_pred"] = df_testing_predictions["ball_x_pred"]*scaler_predictors_training_info["ball_x"]["stdev"] + scaler_predictors_training_info["ball_x"]["mean"]
+        # df_testing_predictions["ball_y_pred"] = df_testing_predictions["ball_y_pred"]*scaler_predictors_training_info["ball_y"]["stdev"] + scaler_predictors_training_info["ball_y"]["mean"]
+        
+        # #if some predicted results are out of bounds of x and y coordinates (field is 105m long by 68m wide), then set them within the boundaries
+        # df_testing_predictions["ball_x_pred"] = np.where(
+        #     df_testing_predictions["ball_x_pred"]<(-1*round(config.length_field_in_metres*100/2,0)),
+        #     (-1*round(config.length_field_in_metres*100/2,0)),
+        #     np.where(
+        #         df_testing_predictions["ball_x_pred"]>round(config.length_field_in_metres*100/2,0),
+        #         round(config.length_field_in_metres*100/2,0),
+        #         df_testing_predictions["ball_x_pred"]
+        #     )
+        # )
+        # df_testing_predictions["ball_y_pred"] = np.where(
+        #     df_testing_predictions["ball_y_pred"]<(-1*round(config.width_field_in_metres*100/2,0)),
+        #     (-1*round(config.width_field_in_metres*100/2,0)),
+        #     np.where(
+        #         df_testing_predictions["ball_y_pred"]>round(config.width_field_in_metres*100/2,0),
+        #         round(config.width_field_in_metres*100/2,0),
+        #         df_testing_predictions["ball_y_pred"]
+        #     )
+        # )
+
+        # #stored_predictions
+        # prediction_table_name = f"prediction_output/lstm_prediction_{datetime.today().strftime('%Y%m%d%H%M')}.pkl"
+        # df_testing_predictions.to_pickle(prediction_table_name)
+
+        # return df_testing_predictions, train_rmse, model_stored_name, prediction_table_name
