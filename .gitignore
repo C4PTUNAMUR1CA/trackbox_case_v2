@@ -1,6 +1,8 @@
 # Ignore data folder
 data/
 
+aggregated_match_dict_org_version.pkl
+aggregated_match_dict_v2.pkl
 aggregated_match_dict.pkl
 
 # Venv
