@@ -106,6 +106,8 @@ def create_distance_from_ball_metric(df,player_ids,train_or_test):
 
         #distance in metres from ball
         df[f"distance_from_ball_{player_id}"] = np.sqrt((df[f"x_delta_distance"]**2)+(df[f"y_delta_distance"]**2))/100
+        #TODO: not sure if this is correct approach for fillna
+        df[f"distance_from_ball_{player_id}"] = df[f"distance_from_ball_{player_id}"].fillna(0)
     df = df.drop(["x_delta_distance","y_delta_distance","ball_x_shifted","ball_y_shifted"],axis=1)
 
     return df

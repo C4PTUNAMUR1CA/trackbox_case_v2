@@ -192,7 +192,7 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
     lstm_model.eval()
 
     for i in range(len(test_df)):
-        if i % 20==0:
+        if i % 1000==0:
             print(f"it is the {str(i)}th forecast out of {str(len(test_df))}")
         if test_df.loc[i,"Time"]==0:
             #at the start of each half, predict that the ball is at 0
@@ -216,6 +216,9 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
 
             input_features = x_test_tensor[i].clone()
 
+            # Reshape for LSTM: (batch=1, sequence=1, features)
+            input_features = input_features.unsqueeze(0).unsqueeze(0)
+
             #obtain predictions for the testing set
             #torch.no_grad(): states explicitly to pytorch that no gradient is being calculated here
             with torch.no_grad():
@@ -228,8 +231,8 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
             ball_y_pred = ball_y_pred_standardised*scaler_info["ball_y"]["stdev"] + scaler_info["ball_y"]["mean"]
 
             # Ensure predictions stay within field boundaries
-            ball_x_pred = np.clip(ball_x_pred, -config.length_field_in_metres*100/2, config.length_field_in_metres*100/2)
-            ball_y_pred = np.clip(ball_y_pred, -config.width_field_in_metres*100/2, config.width_field_in_metres*100/2)
+            ball_x_pred = float(np.clip(ball_x_pred, -config.length_field_in_metres*100/2, config.length_field_in_metres*100/2))
+            ball_y_pred = float(np.clip(ball_y_pred, -config.width_field_in_metres*100/2, config.width_field_in_metres*100/2))
 
             #update ball related features at current row
             test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred]
@@ -306,10 +309,10 @@ def deploy_lstm_model(training_df,test_df,model_version,hyperparameters_dict,kfo
         save_torch_model(best_model,model_stored_name)
 
         df_testing_predictions = create_lstm_predictions(test_df=test_df,
-                                feature_col_list=feature_col_list,
-                                predictor_col_list=predictor_col_list,
-                                lstm_model=best_model,
-                                scaler_info=scaler_predictors_training_info)
+                                                            feature_col_list=feature_col_list,
+                                                            predictor_col_list=predictor_col_list,
+                                                            lstm_model=best_model,
+                                                            scaler_info=scaler_predictors_training_info)
         
         #stored_predictions
         prediction_table_name = f"prediction_output/lstm_prediction_{datetime.today().strftime('%Y%m%d%H%M')}.pkl"

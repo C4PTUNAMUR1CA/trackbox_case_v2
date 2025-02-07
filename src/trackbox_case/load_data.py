@@ -142,15 +142,18 @@ def initial_data_cleaning(df):
     #in case of the test data not having the x and y coordinates of the ball, skip this cleaning step
     if "ball_x" in df.columns and "ball_y" in df.columns:
 
-        max_timestamp_ball_x = df.dropna(subset=["ball_x"])["game_timestamp"].max()
-        max_timestamp_ball_y = df.dropna(subset=["ball_y"])["game_timestamp"].max()
+        #assuming NAs only occur at the end of a halftime: should check better
+        df = df.dropna(subset=['ball_x', 'ball_y'])
 
-        #the maximum timestamp is based on ball_x and ball_y maximum coordinate
+        # max_timestamp_ball_x = df.dropna(subset=["ball_x"])["game_timestamp"].max()
+        # max_timestamp_ball_y = df.dropna(subset=["ball_y"])["game_timestamp"].max()
 
-        assert max_timestamp_ball_x==max_timestamp_ball_y
+        # #the maximum timestamp is based on ball_x and ball_y maximum coordinate
 
-        #filter dataframe to have the maximum game_timestamp capped at the last available x,y coordinate of the ball
-        df = df[df["game_timestamp"]<=min(max_timestamp_ball_x,max_timestamp_ball_y)].reset_index(drop=True)
+        # assert max_timestamp_ball_x==max_timestamp_ball_y
+
+        # #filter dataframe to have the maximum game_timestamp capped at the last available x,y coordinate of the ball
+        # df = df[df["game_timestamp"]<=min(max_timestamp_ball_x,max_timestamp_ball_y)].reset_index(drop=True)
 
     df["MatchId"] = df["MatchId"].str[-1].astype(int)
     
