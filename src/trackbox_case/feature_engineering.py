@@ -130,7 +130,7 @@ def create_ball_speed_metric(df,train_or_test):
     df[f"distance_covered_ball"] = np.sqrt(df[f"delta_distance_ball_x"]**2 + df[f"delta_distance_ball_y"]**2)
     df[f"speed_ball"] = df[f"distance_covered_ball"]/df["delta_time"]
     df["speed_ball"] = np.where(
-        df["Time"] in [0,10],
+        (df["Time"]<=10),
         0,
         df["speed_ball"]
     )
@@ -141,7 +141,7 @@ def create_ball_speed_metric(df,train_or_test):
 def create_ball_acceleration_metric(df,train_or_test):
 
     if train_or_test=="test":
-        df["speed_acceleration"]=np.nan
+        df["acceleration_ball"]=np.nan
         return df
     
     df["delta_time"] = 0.1
@@ -177,5 +177,7 @@ def assign_possession_to_team(df,train_or_test):
         1,
         0
     )
+
+    df = df.drop(["home_min_distance_to_ball","away_min_distance_to_ball"],axis=1)
 
     return df

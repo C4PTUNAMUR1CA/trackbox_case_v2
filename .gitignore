@@ -1,5 +1,5 @@
 # Ignore data folder
-data/
+# data/
 
 aggregated_match_dict_org_version.pkl
 aggregated_match_dict_v2.pkl

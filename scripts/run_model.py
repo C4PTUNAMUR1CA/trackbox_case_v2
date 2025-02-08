@@ -2,16 +2,16 @@ from trackbox_case import load_data
 from trackbox_case.obtain_model_forecast_and_accuracy import fit_model_and_obtain_forecast
 import pickle
 
-model_version="feature_list_2"
+model_version="feature_list_3"
 model_type = "LSTM"
 hyperparameter_version="hyperparameters_1"
 
-aggregated_match_dict = load_data.load_match_data()
+# aggregated_match_dict = load_data.load_match_data()
 # Save to a pickle file
-# with open("aggregated_match_dict_v2.pkl", "wb") as f:
+# with open("aggregated_match_dict_v3.pkl", "wb") as f:
 #     pickle.dump(aggregated_match_dict, f)
 # Load dictionary from a pickle file
-with open("aggregated_match_dict_v2.pkl", "rb") as f:
+with open("aggregated_match_dict_v3.pkl", "rb") as f:
     aggregated_match_dict = pickle.load(f)
 print(f"match data loaded")
 

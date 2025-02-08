@@ -12,10 +12,10 @@ if train_or_prediction_data=="prediction":
 
 # aggregated_match_dict = load_data.load_match_data()
 # Save to a pickle file
-# with open("aggregated_match_dict_v2.pkl", "wb") as f:
+# with open("aggregated_match_dict_v3.pkl", "wb") as f:
 #     pickle.dump(aggregated_match_dict, f)
 # Load dictionary from a pickle file
-with open("aggregated_match_dict_v2.pkl", "rb") as f:
+with open("aggregated_match_dict_v3.pkl", "rb") as f:
     aggregated_match_dict = pickle.load(f)
 print(f"match data loaded")
 
