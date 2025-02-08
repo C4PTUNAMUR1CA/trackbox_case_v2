@@ -39,7 +39,7 @@ hyperparameter_lstm = {
     "hyperparameters_1":{
         "hidden_dim":50,
         "num_layers":2,
-        "epochs":1,
+        "epochs":50,
         "batch_size":64,
         "learning_rate":0.0001,
     }

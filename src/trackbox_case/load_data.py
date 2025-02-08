@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from trackbox_case import feature_engineering
+import re
 
 def load_match_data():
 
@@ -159,17 +160,45 @@ def initial_data_cleaning(df):
     
     return df
 
+def plot_ball_trajectory(df):
+
+    # Create a plot
+    plt.figure(figsize=(8, 6))
+
+    # Plot trajectories for each period separately
+    for period in df['IdPeriod'].unique():
+        subset = df[df['IdPeriod'] == period]
+        plt.plot(subset['ball_x_pred'], subset['ball_y_pred'], marker='o', linestyle='-', label=f'Period {period}')
+
+    # Set field boundaries
+    plt.xlim(-5250, 5250)
+    plt.ylim(-3400, 3400)
+
+    # Labels and title
+    plt.xlabel('Ball X Coordinate')
+    plt.ylabel('Ball Y Coordinate')
+    plt.title('Ball predicted Trajectory')
+    plt.legend()
+    # plt.grid(True)
+    plt.show()
+
 def plot_all_players_in_timestamp(id_half,time,match_df):
 
     #filter for timestamp within the game
-    match_df = match_df.drop(["MatchId","IdPeriod","Time"],axis=1)[((match_df["IdPeriod"]==id_half)&(match_df["Time"]==time))].reset_index(drop=True)
+    match_df = match_df[((match_df["IdPeriod"]==id_half)&(match_df["Time"]==time))].reset_index(drop=True)
 
     assert len(match_df)!=0, f"for specified timestamp, no player coordinate data is found."
+
+    pattern = r"^(home|away)_[0-9]{1,2}_[xy]$"
+    if "ball_x" in match_df.columns and "ball_y" in match_df.columns:
+        match_df = match_df[["game_timestamp"]+[col for col in match_df.columns if re.match(pattern, col)]+["ball_x","ball_y"]]
+    else:
+        match_df = match_df[["game_timestamp"]+[col for col in match_df.columns if re.match(pattern, col)]]
 
     #delete any players with NA x and y coordinates
     match_df = match_df.dropna(axis=1)
 
-    active_player_columns = [col for col in match_df.columns if (("home_" in col or "away_" in col) and ("_x" in col or "_y" in col))]
+    active_player_columns = [col for col in match_df.columns if re.match(pattern, col)]
 
     assert len(active_player_columns)==(11*2*2), f"in active_player_columns should always be 44 columns (11 players per team with a x and y coordinate column)"
 
@@ -303,5 +332,3 @@ def reset_player_id(df,full_match_id):
     df.columns = [rename_column(col,ordered_player_ids,ordered_player_id_to_index) for col in df.columns]
 
     return df
-
-# plot_all_players_in_timestamp(id_half=1,time=0,match_df=aggregated_match_dict["match0"])
