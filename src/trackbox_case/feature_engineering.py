@@ -23,6 +23,12 @@ def create_ball_related_features(df,train_or_test="train"):
 
     df = create_distance_from_ball_metric(df,player_ids,train_or_test)
 
+    df = create_ball_speed_metric(df,train_or_test)
+
+    df = create_ball_acceleration_metric(df,train_or_test)
+
+    df = assign_possession_to_team(df,train_or_test)
+
     return df
 
 def create_speed_and_distance_covered_metric(df,player_ids):
@@ -132,7 +138,29 @@ def create_ball_speed_metric(df,train_or_test):
 
     return df
 
-def assign_possession_to_team(df):
+def create_ball_acceleration_metric(df,train_or_test):
+
+    if train_or_test=="test":
+        df["speed_acceleration"]=np.nan
+        return df
+    
+    df["delta_time"] = 0.1
+    df["acceleration_ball"] = (df[f"speed_ball"] - df[f"speed_ball"].shift(1))/df["delta_time"]
+    df["acceleration_ball"] = df["acceleration_ball"].fillna(0)
+    df[f"acceleration_ball"] = np.where(
+        df[f"Time"]==0,
+        0,
+        df[f"acceleration_ball"]
+    )
+    df = df.drop(["delta_time"],axis=1)
+
+    return df
+
+def assign_possession_to_team(df,train_or_test):
+
+    if train_or_test=="test":
+        df["possession_home_boolean"] = np.nan
+        return df
 
     #create column lists of all home and away players, separately
     home_players_cols = [col for col in df.columns if ("distance_from_ball_" in col and "_home_" in col)]
@@ -148,11 +176,6 @@ def assign_possession_to_team(df):
         df["home_min_distance_to_ball"]<df["away_min_distance_to_ball"],
         1,
         0
-    )
-    df["possession_away_boolean"]= np.where(
-        df["home_min_distance_to_ball"]<df["away_min_distance_to_ball"],
-        0,
-        1
     )
 
     return df
