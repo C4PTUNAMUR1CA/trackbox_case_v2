@@ -23,7 +23,7 @@ class trackbox_LSTM(nn.Module):
         out = self.fc(lstm_out)  # out and push it through the fully connected layer to get a regression result: Y = w*H + b
 
         # Apply sigmoid to the last output neuron for binary classification (possession)
-        out[:,-1] = torch.sigmoid(out[:,-1])  # Apply only to the last output variable (possession_home_boolean)
+        # out[:,-1] = torch.sigmoid(out[:,-1])  # Apply only to the last output variable (possession_home_boolean)
 
         return out
 
@@ -189,7 +189,7 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
     # x_test_tensor = torch.tensor(x_test_df,dtype=torch.float32)
 
     #introduce the predictor columns to test_df
-    test_df[predictor_col_list] = [0,0,0]
+    test_df[predictor_col_list] = [0,0]
 
     #collect all predicted ball_x and ball_y values in here
     predicted_positions = []
@@ -203,13 +203,13 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
             ball_x_pred = 0
             ball_y_pred = 0
             #TODO: fix this prediction
-            possession_home_boolean_pred=1
+            # possession_home_boolean_pred=1
 
             #update ball related features at current row
-            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred,possession_home_boolean_pred]
+            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred]
 
             #store predicted coordinates
-            predicted_positions.append([ball_x_pred,ball_y_pred,possession_home_boolean_pred])
+            predicted_positions.append([ball_x_pred,ball_y_pred])
         else:
             test_df_to_ith_sample = test_df.copy()[0:(i+1)]
             #update features, such that at time t the ball-related features are created with the forecast ball coordinates at time t-1
@@ -231,25 +231,25 @@ def create_lstm_predictions(test_df,feature_col_list,predictor_col_list,lstm_mod
                 y_pred_test = lstm_model(input_features)
 
             # Get predictions
-            ball_x_pred_standardised, ball_y_pred_standardised, possession_home_boolean_pred_standardised = y_pred_test.squeeze().tolist()
+            ball_x_pred_standardised, ball_y_pred_standardised = y_pred_test.squeeze().tolist()
 
             ball_x_pred = ball_x_pred_standardised*scaler_info["ball_x"]["stdev"] + scaler_info["ball_x"]["mean"]
             ball_y_pred = ball_y_pred_standardised*scaler_info["ball_y"]["stdev"] + scaler_info["ball_y"]["mean"]
             #sigmoid valued predicted value, so if above 0.5, then convert boolean predicted variable to 1, otherwise 0
-            if possession_home_boolean_pred_standardised>0.5:
-                possession_home_boolean_pred = 1
-            else:
-                possession_home_boolean_pred = 0
+            # if possession_home_boolean_pred_standardised>0.5:
+            #     possession_home_boolean_pred = 1
+            # else:
+            #     possession_home_boolean_pred = 0
 
             # Ensure predictions stay within field boundaries
             ball_x_pred = float(np.clip(ball_x_pred, -config.length_field_in_metres*100/2, config.length_field_in_metres*100/2))
             ball_y_pred = float(np.clip(ball_y_pred, -config.width_field_in_metres*100/2, config.width_field_in_metres*100/2))
 
             #update ball related features at current row
-            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred,possession_home_boolean_pred]
+            test_df.loc[i,predictor_col_list] = [ball_x_pred,ball_y_pred]
 
             #store predicted coordinates
-            predicted_positions.append([ball_x_pred,ball_y_pred,possession_home_boolean_pred])
+            predicted_positions.append([ball_x_pred,ball_y_pred])
 
     df_testing_predictions = pd.DataFrame(predicted_positions, columns=[col + "_pred" for col in predictor_col_list])
 
@@ -263,7 +263,7 @@ def deploy_lstm_model(training_df,test_df,model_version,hyperparameters_dict,kfo
     #chosen feature columns for lstm
     chosen_features = config.feature_columns[model_version]
 
-    predictor_col_list = ["ball_x","ball_y","possession_home_boolean"]
+    predictor_col_list = ["ball_x","ball_y"]
 
     #extract only relevant feature columns and predictor variables
     training_df = training_df[chosen_features+predictor_col_list]

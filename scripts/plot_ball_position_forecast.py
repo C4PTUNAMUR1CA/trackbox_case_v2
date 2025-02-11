@@ -8,7 +8,7 @@ import pandas as pd
 train_or_prediction_data = "prediction"
 training_match_id = "match0"
 if train_or_prediction_data=="prediction":
-    ball_prediction_pickle_file = f"prediction_output/lstm_prediction_202502071032.pkl"
+    ball_prediction_pickle_file = f"prediction_output/lstm_prediction_202502082154.pkl"
 
 # aggregated_match_dict = load_data.load_match_data()
 # Save to a pickle file

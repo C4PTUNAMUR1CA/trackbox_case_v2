@@ -6,7 +6,7 @@ model_version="feature_list_3"
 model_type = "LSTM"
 hyperparameter_version="hyperparameters_1"
 
-# aggregated_match_dict = load_data.load_match_data()
+aggregated_match_dict = load_data.load_match_data()
 # Save to a pickle file
 # with open("aggregated_match_dict_v3.pkl", "wb") as f:
 #     pickle.dump(aggregated_match_dict, f)

@@ -6,8 +6,8 @@ import pickle
 # with open("aggregated_match_dict_v2.pkl", "wb") as f:
 #     pickle.dump(aggregated_match_dict, f)
 # Load dictionary from a pickle file
-with open("aggregated_match_dict_v2.pkl", "rb") as f:
+with open("aggregated_match_dict_v3.pkl", "rb") as f:
     aggregated_match_dict = pickle.load(f)
 print(f"match data loaded")
 
-load_data.plot_all_players_in_timestamp(id_half=1,time=10000,match_df=aggregated_match_dict["match0"])
+load_data.plot_all_players_in_timestamp(id_half=1,time=20000,match_df=aggregated_match_dict["match0"])

@@ -88,10 +88,10 @@ def read_all_raw_match_data():
 
     match_xlsx_files = get_xlsx_files(folder_path)
 
-    for match_data in match_xlsx_files:
+    # for match_data in match_xlsx_files:
 
-        match_name = match_data.replace(".xlsx","").lower()
-        match_dict_all[match_name] = pd.read_excel(rf"data\{match_data}")
+    #     match_name = match_data.replace(".xlsx","").lower()
+    #     match_dict_all[match_name] = pd.read_excel(rf"data\{match_data}")
 
     match_csv_files = get_csv_files(folder_path)
 

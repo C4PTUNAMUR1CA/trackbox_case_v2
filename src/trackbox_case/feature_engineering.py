@@ -23,6 +23,8 @@ def create_ball_related_features(df,train_or_test="train"):
 
     df = create_distance_from_ball_metric(df,player_ids,train_or_test)
 
+    df = create_average_position_team(df,pattern,home_or_away="home")
+
     df = create_ball_speed_metric(df,train_or_test)
 
     df = create_ball_acceleration_metric(df,train_or_test)
@@ -30,6 +32,17 @@ def create_ball_related_features(df,train_or_test="train"):
     df = assign_possession_to_team(df,train_or_test)
 
     return df
+
+def create_average_position_team(df,home_or_away):
+
+    pattern_x = rf"^{home_or_away}_[0-9]{1,2}_x$"
+    pattern_y = rf"^{home_or_away}_[0-9]{1,2}_y$"
+
+
+    x_coordinate_player_ids = [col for col in df.columns if re.match(pattern_x, col)]
+    y_coordinate_player_ids = [col for col in df.columns if re.match(pattern_y, col)]
+
+    
 
 def create_speed_and_distance_covered_metric(df,player_ids):
 
@@ -170,8 +183,7 @@ def assign_possession_to_team(df,train_or_test):
     df["home_min_distance_to_ball"] = df[home_players_cols].min(axis=1)
     df["away_min_distance_to_ball"] = df[away_players_cols].min(axis=1)
     
-    #TODO how to do regarding standardisation and forecast, forecast will never be 0 or 1
-    #create two boolean variables as to which team has possession
+    #create boolean variable as to which team has possession
     df["possession_home_boolean"]= np.where(
         df["home_min_distance_to_ball"]<df["away_min_distance_to_ball"],
         1,
